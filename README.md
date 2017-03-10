@@ -10,8 +10,11 @@ cuts a georeferenced imagefile into a smaller one, creates a Grass raster and a 
 ## arguments from command line 
 ## can create new location based on settings of input imagefile or use existing
 
+# I have used maps from   "ftp://salix.slu.se/download/skogskarta/"
+# One rules-file downloaded to repository, age_classes 
+
 ToDo's: 
- ini-file instead of command line arguments
+ ini-file instead or as an alternative to command line arguments
   check if the files exists
   check if imagefile is valid and of right type, GTiff for example
   check if clipped area less then original
