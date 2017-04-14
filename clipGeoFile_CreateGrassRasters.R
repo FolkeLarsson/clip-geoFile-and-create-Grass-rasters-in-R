@@ -4,9 +4,10 @@
 ## tested on Ubuntu 14 and windows 10 
 ## arguments from command line 
 ## can create new location based on settings of input imagefile or use existing
+## paths to executables, imagefile type and class hardcoded in script for windows and else
+## Folke Larsson, Boden Sweden, 2017
 
 
-# init
 library(sp)
 library(gdalUtils)
 library(rgdal)
@@ -14,13 +15,14 @@ library(spgrass6)
 library(raster)
 library(grid)
 library(stringr)
-require(methods)
 
+
+# init 
 args<-commandArgs(TRUE)
-options(warn=0)
+options(warn=0) # 
 
 
-# command line parameters 
+# command line arguments 
 in_MapFile        <- args[1]  # source GTiff map file
 in_ulx            <- args[2]  # Upper-Left X-coordinate 
 in_uly            <- args[3]  # Upper-Left Y-coordinate 
@@ -34,22 +36,14 @@ in_mapset         <- args[10] # existing Grass mapset, if new localion always PE
 in_isNewLocation  <- args[11] # TRUE or FALSE if a new location should be created 
 
 
-# area of destination file, to cut out from given Gtiff map
-projwin_str1 = paste(in_ulx, ", ", in_uly, ", ", in_lrx, ", ", in_lry, sep="")
-print(" projwin ")
-print(projwin_str1)
-
-
-# variables 
-imagefile_type <- "GTiff"
+## variables
+# projwin_str: area of destination file, to cut out from given image
+projwin_str     <- paste(in_ulx, ", ", in_uly, ", ", in_lrx, ", ", in_lry, sep="")
+imagefile_type  <- "GTiff"
 imagefile_class <- "RasterBrick"
-#curr_location <- "rt90"
-#curr_mapset   <- "AKH"
-#new_location <- "rt90_AKH"
 
 
 ## functions
-
 # a fix if using older versions of R
 paste0 <- function(..., collapse = NULL) {
     paste(..., sep = "", collapse = collapse)
@@ -59,11 +53,10 @@ paste0 <- function(..., collapse = NULL) {
 gdal_OK = function() {
 	gdal_setInstallation()
 	valid_install <- !is.null(getOption("gdalUtils_gdalPath"))
-	print( paste("----- valid install of gdal ? ------", valid_install) )
 	return(valid_install) # TRUE or FALSE 
 } # gdal_OK
 
-# from given file, GTiff so far, and given clip-window, creating new smaller file.
+# from given file, like a GTiff and given clip-window, creating new smaller file.
 # returns name of new file if its a raster, else returns the other type
 cut_mapfile = function(v_in_mapfile, v_file_sep, v_suffix, v_lrx, v_lry, v_ulx, v_uly) {
 	projwin_str = paste(v_ulx, ", ", v_uly, ", ", v_lrx, ", ", v_lry, sep="")
@@ -75,7 +68,6 @@ cut_mapfile = function(v_in_mapfile, v_file_sep, v_suffix, v_lrx, v_lry, v_ulx, 
 	dest_file <- paste(dest_file_name, paste(".", in_file_type, sep=""), sep="")
 	can_cut_mapfile <- tryCatch( {
 				gdal_translate(v_in_mapfile, dest_file, of=imagefile_type, projwin=projwin_str, output_Raster=TRUE,  verbose=TRUE) 
-				#return_value <- dest_file
 			},
 			error=function(err) {
 				stop(err)
@@ -105,7 +97,8 @@ create_grass_rastermap = function(v_mapfile, v_file_sep, v_location, v_mapset, v
 	} else if(v_is_new_location == FALSE) {
 		init_grass <- initGRASS(gisBase=curr_gisBase, home = tempdir(), gisDbase=curr_gisDbase, location=v_location, mapset=v_mapset, override = TRUE)
 		print(" ---  init ----------")
-		print(init_grass) 	
+		print(init_grass) 
+		print(" ---  end init ----------")
 		err_exec <- execGRASS("r.in.gdal", input=v_mapfile, output=raster_name_t, flags=c("overwrite", "o"))
 	} else {
 		stop(" in create_grass_rastermap, v_is_new_location must be TRUE or FALSE !! ")
@@ -126,42 +119,30 @@ create_grass_classes_rastermap = function(v_raster_name, v_rules_file) {
 	if (err_exec == 0) {
 		return(raster_name_classes)
 	} else {
-		print( paste(" error creating grass classes raster map", as.character(err_exec)) )
 		stop( paste(" error creating grass classes raster map", as.character(err_exec)) )
 	}
 }# create_grass_classes_rastermap
 
 
-# directory for log- and error-files and some initial logging
-work_dir <- paste("dir_", in_Prefix, sep="")
-file_sep <-  .Platform$file.sep
-file_psep <- .Platform$path.sep
-OS_type <- .Platform$OS.type
-print("----- file sep -----")
-print(file_sep)
-print(file_psep)
-print(OS_type)
-print(Sys.info()["sysname"])
+# directory for log- and error-files and some initial logging of system parameters
+work_dir    <- paste("dir_", in_Prefix, sep="")
+file_sep    <- .Platform$file.sep
+file_psep   <- .Platform$path.sep
+OS_type     <- .Platform$OS.type
+os_version  <- version$os
+system_name <- Sys.info()['sysname']
+system_info <- str(Sys.info)
 
-could_create_dir <- dir.create(work_dir)
-dir_path = paste(work_dir, file_sep, sep="")
-print(" ********* dir create for logging and error/warnings ******** ")
-print(could_create_dir)
-print("----- logging directory path -----")
-print(dir_path)
-
-# directing output to files 
-msg <- file(paste(dir_path, "errors_and_warnings.log", sep=""), open="wt")
-out <- file(paste(dir_path, "logging_output.log" , sep=""), open="wt")
-sink(msg, type="message")
-sink(out, type="output")
-
-print("command line arguments: ")
+# for command prompt 
+print("-------- command line arguments ------------- ")
 print(args)
+if (is.na(in_isNewLocation)) {
+	stop(" no in_isNewLocation argument !! ")
+}
+print("-------- end command line arguments --------- ")
 
 # setting file separator if OS is Windows
 # then init Grass paths depending on OS, only tested on windows 10 and Ubuntu 14 
-print(file_sep)
 if (OS_type == "windows") {
 	file_sep <- "\\\\" 
 	curr_gisBase  <- "C:\\OSGeo4W64\\apps\\grass\\grass-6.4.3"
@@ -170,37 +151,40 @@ if (OS_type == "windows") {
 	curr_gisBase  <- "/usr/lib/grass64/"
 	curr_gisDbase <- "/home/folke/grass/grassdata/"	
 }
-print(file_sep)
 
 
+# create dir for logging 
+could_create_dir <- dir.create(work_dir)
+print(paste("  logging directory path: ", could_create_dir))
+dir_path = paste(work_dir, file_sep, sep="")
+tmp_path <- paste(dir_path, paste(file_sep, "tmp", sep=""), sep="")
+print(paste(" dir: ", dir_path))
 
-if(in_isNewLocation == TRUE) {
-	print(paste("new loc:  ", in_isNewLocation))
-} else if(in_isNewLocation == FALSE) {
-	print(paste("new loc:  ", in_isNewLocation))
-} else {
-	print(paste("new loc:  ", in_isNewLocation))
-	stop("  boolean trouble in_isNewLocation")
-}
+# directing output to files 
+msg <- file(paste(dir_path, "errors_and_warnings.log", sep=""), open="wt")
+out <- file(paste(dir_path, "logging_output.log" , sep=""), open="wt")
+sink(msg, type="message")
+sink(out, type="output")
+
+# logging system parameters and arguments
+print(paste(" projwin ",    projwin_str))
+print(paste(" file sep: ",  file_sep))
+print(paste(" file psep: ", file_psep))
+print(paste(" OS type: ",   OS_type))
+print(paste(" sysname: ",   system_name))
+print(paste(" sysinfo: ",   system_info))
 
 
 # the "script itself"
-print(" ---  GDAL installation OK ?----------")
 is_gdal_OK <- gdal_OK()
-print(is_gdal_OK)
+print( paste("----- valid install of gdal  :", is_gdal_OK) )
 if (is_gdal_OK == TRUE) {
 	new_mapfile <- cut_mapfile(in_MapFile, file_sep, in_Suffix, in_lrx, in_lry, in_ulx, in_uly)
-	print(" ---  new map ----------")
-	print(new_mapfile)
+	print(paste("new map file: ", new_mapfile))
 	raster_name <- create_grass_rastermap(new_mapfile, file_sep, in_location, in_mapset, in_isNewLocation)
-	print(raster_name)
- if (in_isNewLocation == FALSE) {
-	#init_grass <- initGRASS(gisBase=curr_gisBase, home = tempdir(), gisDbase=curr_gisDbase, location=new_location, mapset="PERMANENT", override = TRUE)
-	print(" ---  init ----------")
-	#print(init_grass) 	
- }# is_new_location	
-raster_name_classes <- create_grass_classes_rastermap(raster_name, in_ClassRules) 
-	print(raster_name_classes)
+	print(paste("raster name: ", raster_name))
+    raster_name_classes <- create_grass_classes_rastermap(raster_name, in_ClassRules) 
+	print(paste("raster name classes: ", raster_name_classes))
 } else {
 	stop(" found no valid GDAL installation ")
 } # is_gdal_OK
