@@ -58,7 +58,7 @@ gdal_OK = function() {
 
 # from given file, like a GTiff and given clip-window, creating new smaller file.
 # returns name of new file if its a raster, else returns the other type
-cut_mapfile = function(v_in_mapfile, v_file_sep, v_suffix, v_lrx, v_lry, v_ulx, v_uly) {
+cut_mapfile = function(v_in_mapfile, v_file_sep, v_suffix, v_lrx, v_lry, v_ulx, v_uly, v_imagefile_type, v_imagefile_class) {
 	projwin_str = paste(v_ulx, ", ", v_uly, ", ", v_lrx, ", ", v_lry, sep="")
 	in_file_length <- str_length(as.character(v_in_mapfile))
 	cut_pos <- as.numeric(str_locate(v_in_mapfile, '\\.'))
@@ -67,7 +67,7 @@ cut_mapfile = function(v_in_mapfile, v_file_sep, v_suffix, v_lrx, v_lry, v_ulx, 
 	dest_file_name <- paste(substr(v_in_mapfile, 1, nchar(v_in_mapfile)-4), v_suffix, sep="")
 	dest_file <- paste(dest_file_name, paste(".", in_file_type, sep=""), sep="")
 	can_cut_mapfile <- tryCatch( {
-				gdal_translate(v_in_mapfile, dest_file, of=imagefile_type, projwin=projwin_str, output_Raster=TRUE,  verbose=TRUE) 
+				gdal_translate(v_in_mapfile, dest_file, of=v_imagefile_type, projwin=projwin_str, output_Raster=TRUE,  verbose=TRUE) 
 			},
 			error=function(err) {
 				stop(err)
@@ -79,7 +79,7 @@ cut_mapfile = function(v_in_mapfile, v_file_sep, v_suffix, v_lrx, v_lry, v_ulx, 
 				print( paste(" new  GTiff created: ", dest_file) )
 			}
 	) # can_cut_mapfile
-	if( class(can_cut_mapfile) == imagefile_class ) { 
+	if( class(can_cut_mapfile) == v_imagefile_class ) { 
 		return(dest_file)
 	} else {
 		return(class(can_cut_mapfile))
